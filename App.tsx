@@ -82,7 +82,17 @@ function getDistance(lat1: number, lon1: number, lat2: number, lon2: number): nu
 }
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<{ id: number; username: string } | null>(null);
+  const [user, setUser] = useState<{ id: number; username: string } | null>(() => {
+    const savedUser = localStorage.getItem('biofarol_user');
+    if (savedUser) {
+      try {
+        return JSON.parse(savedUser);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [supportStatus, setSupportStatus] = useState(false);
@@ -128,24 +138,38 @@ const App: React.FC = () => {
       }
 
       const ctx = audioContextRef.current;
-      if (ctx.state === 'suspended') {
-        ctx.resume();
-      }
 
-      if (!silentOscillatorRef.current) {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        
-        // Set gain to 0 (silent)
-        gain.gain.value = 0;
-        
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        
-        osc.start();
-        silentOscillatorRef.current = osc;
-        console.log('Silent audio loop started for background execution');
-      }
+      const initAudio = () => {
+        if (ctx.state === 'suspended') {
+          ctx.resume();
+        }
+        if (!silentOscillatorRef.current) {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          
+          // Set gain to a very small non-zero value to prevent aggressive optimization
+          gain.gain.value = 0.001;
+          
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          
+          osc.start();
+          silentOscillatorRef.current = osc;
+          console.log('Silent audio loop started for background execution');
+        }
+      };
+
+      initAudio();
+
+      // Ensure audio context is unlocked by user interaction if it was blocked
+      const unlockAudio = () => {
+        initAudio();
+        document.removeEventListener('touchstart', unlockAudio);
+        document.removeEventListener('click', unlockAudio);
+      };
+      document.addEventListener('touchstart', unlockAudio);
+      document.addEventListener('click', unlockAudio);
+
     } catch (e) {
       console.warn("Silent audio play failed:", e);
     }
@@ -204,6 +228,8 @@ const App: React.FC = () => {
     // Start silent audio to keep app alive in background
     startSilentAudio();
 
+    let intervalId: number | null = null;
+
     const sendLocationUpdate = async (latitude: number, longitude: number) => {
         const payload = {
             usuario_id: user.id,
@@ -229,6 +255,24 @@ const App: React.FC = () => {
         }
     };
 
+    const forceLocationUpdate = () => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    sendLocationUpdate(position.coords.latitude, position.coords.longitude);
+                },
+                (error) => {
+                    console.error('Interval location error:', error.message);
+                },
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 10000
+                }
+            );
+        }
+    };
+
     if (navigator.geolocation) {
         // Use watchPosition for continuous, background-friendly tracking
         watchIdRef.current = navigator.geolocation.watchPosition(
@@ -245,6 +289,13 @@ const App: React.FC = () => {
                 timeout: 30000
             }
         );
+
+        // Fallback interval to force updates even if device is stationary or watchPosition is throttled
+        // Send location every 30 seconds
+        intervalId = window.setInterval(forceLocationUpdate, 30000);
+        
+        // Send immediate initial location
+        forceLocationUpdate();
     } else {
         console.warn("Geolocation is not supported by this browser.");
     }
@@ -254,6 +305,9 @@ const App: React.FC = () => {
         if (watchIdRef.current !== null) {
             navigator.geolocation.clearWatch(watchIdRef.current);
             watchIdRef.current = null;
+        }
+        if (intervalId !== null) {
+            window.clearInterval(intervalId);
         }
     };
   }, [user, supportStatus]);
@@ -359,12 +413,14 @@ const App: React.FC = () => {
   const handleLogin = (loggedInUser: { id: number; username: string }) => {
     if (loggedInUser && loggedInUser.username) {
       setUser(loggedInUser);
+      localStorage.setItem('biofarol_user', JSON.stringify(loggedInUser));
       setSupportStatus(false); // Reset support status on new login
     }
   };
 
   const handleLogout = () => {
     setUser(null);
+    localStorage.removeItem('biofarol_user');
     setSupportStatus(false);
   };
 
