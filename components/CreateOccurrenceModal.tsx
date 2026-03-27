@@ -9,7 +9,6 @@ import MicrophoneIcon from './icons/MicrophoneIcon';
 import LocationMarkerIcon from './icons/LocationMarkerIcon';
 import Select from './common/Select';
 import TrashIcon from './icons/TrashIcon';
-import { GoogleGenAI } from '@google/genai';
 
 // Let TypeScript know that 'L' from Leaflet is a global variable
 declare const L: any;
@@ -89,6 +88,7 @@ export const CreateOccurrenceModal: React.FC<CreateOccurrenceModalProps> = ({ on
   const [audioUrl, setAudioUrl] = useState<string>('');
   const [transcription, setTranscription] = useState('');
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [liveTranscription, setLiveTranscription] = useState('');
   
   const numeroInputRef = useRef<HTMLInputElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -98,6 +98,7 @@ export const CreateOccurrenceModal: React.FC<CreateOccurrenceModalProps> = ({ on
   const markerRef = useRef<any>(null); // To hold marker instance
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const speechRecognitionRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
 
@@ -143,42 +144,9 @@ export const CreateOccurrenceModal: React.FC<CreateOccurrenceModalProps> = ({ on
             return;
         }
 
-        const transcribeAudio = async () => {
-            setIsTranscribing(true);
-            setTranscription('');
-            try {
-                const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
-                
-                const audioBase64 = await blobToBase64(audioBlob);
-
-                const audioPart = {
-                    inlineData: {
-                        mimeType: audioBlob.type,
-                        data: audioBase64,
-                    },
-                };
-
-                const textPart = {
-                    text: "Transcreva este áudio. A transcrição deve ser em português.",
-                };
-
-                // FIX: The `contents` property for a single multi-part request should be an object, not an array.
-                const response = await ai.models.generateContent({
-                    model: 'gemini-3-flash-preview',
-                    contents: { parts: [audioPart, textPart] },
-                });
-                
-                setTranscription(response.text ?? "");
-            } catch (error) {
-                console.error("Erro na transcrição de áudio:", error);
-                setTranscription("Não foi possível transcrever o áudio. Tente novamente.");
-            } finally {
-                setIsTranscribing(false);
-            }
-        };
-
-        transcribeAudio();
-    }, [audioBlob]);
+        // Usar a transcrição ao vivo como transcrição final
+        setTranscription(liveTranscription || 'Transcrição não disponível');
+    }, [audioBlob, liveTranscription]);
 
 
   const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -441,6 +409,7 @@ export const CreateOccurrenceModal: React.FC<CreateOccurrenceModalProps> = ({ on
   const handleToggleRecording = async () => {
     if (isRecording) {
         mediaRecorderRef.current?.stop();
+        speechRecognitionRef.current?.stop();
         streamRef.current?.getTracks().forEach(track => track.stop()); // Release the microphone
         setIsRecording(false);
     } else {
@@ -455,12 +424,45 @@ export const CreateOccurrenceModal: React.FC<CreateOccurrenceModalProps> = ({ on
                     audioChunksRef.current.push(event.data);
                 }
             };
-            
+
             mediaRecorderRef.current.onstop = () => {
                 // FIX: Added an explicit Blob type annotation to help TypeScript's type inference, resolving a downstream error where `audioBlob` was incorrectly typed as `unknown`.
                 const completeBlob: Blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                 setAudioBlob(completeBlob);
+                setAudioUrl(URL.createObjectURL(completeBlob));
             };
+
+            // Iniciar transcrição ao vivo
+            const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                speechRecognitionRef.current = new SpeechRecognition();
+                speechRecognitionRef.current.lang = 'pt-BR';
+                speechRecognitionRef.current.continuous = true;
+                speechRecognitionRef.current.interimResults = true;
+                speechRecognitionRef.current.maxAlternatives = 1;
+
+                speechRecognitionRef.current.onresult = (event: any) => {
+                    let finalTranscript = '';
+                    let interimTranscript = '';
+
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript;
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+
+                    setLiveTranscription(finalTranscript + interimTranscript);
+                };
+
+                speechRecognitionRef.current.onerror = (event: any) => {
+                    console.error('Erro na transcrição ao vivo:', event.error);
+                };
+
+                speechRecognitionRef.current.start();
+            }
 
             mediaRecorderRef.current.start();
             setIsRecording(true);
@@ -660,15 +662,24 @@ export const CreateOccurrenceModal: React.FC<CreateOccurrenceModalProps> = ({ on
                         </div>
                         )}
 
-                        {audioUrl && (
+                        {isRecording && (
+                            <div className="mt-2">
+                                <label className="block text-sm font-medium text-slate-300 mb-1">Transcrição ao Vivo</label>
+                                <div className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-slate-200 whitespace-pre-wrap min-h-[60px]">
+                                    {liveTranscription || 'Fale para ver a transcrição aparecer aqui...'}
+                                </div>
+                            </div>
+                        )}
+
+                        {audioUrl && !isRecording && (
                             <div className="bg-slate-700/50 p-2 rounded-lg">
                                 <audio controls src={audioUrl} className="w-full h-10">Seu navegador não suporta o elemento de áudio.</audio>
                             </div>
                         )}
                         {isTranscribing && <p className="text-slate-300 mt-2 text-center">Transcrevendo áudio, por favor aguarde...</p>}
-                        {transcription && !isTranscribing && (
+                        {transcription && !isTranscribing && !isRecording && (
                             <div className="mt-2">
-                                <label htmlFor="transcription-output" className="block text-sm font-medium text-slate-300 mb-1">Transcrição</label>
+                                <label htmlFor="transcription-output" className="block text-sm font-medium text-slate-300 mb-1">Transcrição Final</label>
                                 <div id="transcription-output" className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-slate-200 whitespace-pre-wrap">
                                     {transcription}
                                 </div>
