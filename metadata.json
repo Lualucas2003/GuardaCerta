@@ -1,0 +1,9 @@
+{
+  "name": "GuardaCerta Dashboard",
+  "description": "A modern dashboard interface inspired by the GuardaCerta design. It features a sidebar for navigation, a header with user information, a main content area for occurrences, and an install banner. This replaces the previous simple login/home screen.",
+  "requestFramePermissions": [
+    "geolocation",
+    "microphone",
+    "camera"
+  ]
+}
