@@ -37,7 +37,7 @@ const Filters: React.FC<FiltersProps> = ({
     responsaveis,
     bairros
 }) => {
-    const [isExpanded, setIsExpanded] = useState(true);
+    const [isExpanded, setIsExpanded] = useState(false);
     const startDateRef = useRef<HTMLInputElement>(null);
     const endDateRef = useRef<HTMLInputElement>(null);
     

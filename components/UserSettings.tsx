@@ -20,7 +20,7 @@ const UserSettings: React.FC = () => {
     const [units, setUnits] = useState<Unit[]>([]);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState({ name: '', cpf: '', profile: 'all', unit: 'all' });
-    const [isFiltersExpanded, setIsFiltersExpanded] = useState(true);
+    const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>(null);
 
     // Modal States

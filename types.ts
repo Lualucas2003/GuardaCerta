@@ -9,6 +9,7 @@ export type OccurrenceType =
   'Apoio a outros órgãos' | 
   'Atendimento para prestação de informações' | 
   'Conflito entre indivíduos' | 
+  'PBF (Ponto Base Fixo)' | 
   'Verificação de invasão de imóvel' | 
   'Ocorrências envolvendo flanelinhas' | 
   'Operações conjuntas' | 
