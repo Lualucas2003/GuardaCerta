@@ -469,19 +469,49 @@ export const api = {
                 console.error('Fetched profiles data is not an array:', data);
                 return [];
             }
-            // Map API response to the Profile interface
-            return data.map((item: any) => ({
-                id: item.id,
-                name: item.nome, // 'nome' from API maps to 'name' in our type
-            }));
+            return data
+                .filter((item: any) => !item.sistema_id || item.sistema_id === 3)
+                .map((item: any) => ({
+                    id: item.id,
+                    name: item.nome,
+                    escopo: item.escopo || 'local',
+                }));
         } catch (error) {
             console.error('Error fetching profiles:', error);
             return [];
         }
     },
 
-    async createProfile(name: string): Promise<Profile> {
-        const payload = { nome: name };
+    async getPerfilPermissoes(perfilId: number): Promise<string[]> {
+        try {
+            const response = await fetch(
+                `https://n8n-datalakepcr.recife.pe.gov.br/webhook/getperfil_permissoes?perfil_id=${perfilId}&sistema_id=3`
+            );
+            if (!response.ok) throw new Error('fetch failed');
+            const data = await response.json();
+            if (!Array.isArray(data)) return [];
+            return data.map((item: any) => String(item.permissao_id || item.id || ''));
+        } catch (error) {
+            console.error('Error fetching profile permissions:', error);
+            return [];
+        }
+    },
+
+    async savePerfilPermissoes(perfilId: number, permissaoIds: string[]): Promise<void> {
+        const payload = { perfil_id: perfilId, permissao_ids: permissaoIds, sistema_id: 3 };
+        const response = await fetch('https://n8n-datalakepcr.recife.pe.gov.br/webhook/postperfil_permissoes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Erro ao salvar permissões: ${response.status} - ${errorText}`);
+        }
+    },
+
+    async createProfile(name: string, escopo: 'global' | 'local' = 'local'): Promise<Profile> {
+        const payload = { nome: name, sistema_id: 3, escopo };
         const response = await fetch('https://n8n-datalakepcr.recife.pe.gov.br/webhook/postperfil', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -496,7 +526,8 @@ export const api = {
         const responseData = await response.json();
         return {
             id: responseData.id || Date.now(),
-            name: responseData.nome || name
+            name: responseData.nome || name,
+            escopo,
         };
     },
     

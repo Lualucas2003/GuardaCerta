@@ -63,7 +63,88 @@ export interface Unit {
 export interface Profile {
     id: number;
     name: string;
+    escopo?: 'global' | 'local';
 }
+
+export interface Permissao {
+    id: string;       // e.g. 'ocorrencias.visualizar'
+    descricao: string;
+    modulo: string;
+    acao: string;
+}
+
+export interface ModuloPermissao {
+    key: string;
+    label: string;
+    colorClass: string;
+    bgClass: string;
+    permissoes: Permissao[];
+}
+
+export const MODULOS_PERMISSOES: ModuloPermissao[] = [
+    {
+        key: 'ocorrencias',
+        label: 'Ocorrências',
+        colorClass: 'text-blue-700',
+        bgClass: 'bg-blue-50 border-blue-200',
+        permissoes: [
+            { id: 'ocorrencias.visualizar', descricao: 'Visualizar lista', modulo: 'ocorrencias', acao: 'visualizar' },
+            { id: 'ocorrencias.criar',      descricao: 'Registrar nova',   modulo: 'ocorrencias', acao: 'criar' },
+            { id: 'ocorrencias.editar',     descricao: 'Editar',           modulo: 'ocorrencias', acao: 'editar' },
+            { id: 'ocorrencias.excluir',    descricao: 'Excluir',          modulo: 'ocorrencias', acao: 'excluir' },
+        ],
+    },
+    {
+        key: 'monitoramento',
+        label: 'Monitoramento',
+        colorClass: 'text-green-700',
+        bgClass: 'bg-green-50 border-green-200',
+        permissoes: [
+            { id: 'monitoramento.visualizar', descricao: 'Visualizar mapa em tempo real', modulo: 'monitoramento', acao: 'visualizar' },
+        ],
+    },
+    {
+        key: 'roteirizacao',
+        label: 'Roteirização',
+        colorClass: 'text-purple-700',
+        bgClass: 'bg-purple-50 border-purple-200',
+        permissoes: [
+            { id: 'roteirizacao.visualizar', descricao: 'Visualizar rotas', modulo: 'roteirizacao', acao: 'visualizar' },
+            { id: 'roteirizacao.criar',      descricao: 'Criar rota',       modulo: 'roteirizacao', acao: 'criar' },
+            { id: 'roteirizacao.editar',     descricao: 'Editar rota',      modulo: 'roteirizacao', acao: 'editar' },
+            { id: 'roteirizacao.excluir',    descricao: 'Excluir rota',     modulo: 'roteirizacao', acao: 'excluir' },
+        ],
+    },
+    {
+        key: 'dashboard',
+        label: 'Dashboard',
+        colorClass: 'text-orange-700',
+        bgClass: 'bg-orange-50 border-orange-200',
+        permissoes: [
+            { id: 'dashboard.visualizar', descricao: 'Ver dashboard gerencial', modulo: 'dashboard', acao: 'visualizar' },
+        ],
+    },
+    {
+        key: 'relatorios',
+        label: 'Relatórios',
+        colorClass: 'text-amber-700',
+        bgClass: 'bg-amber-50 border-amber-200',
+        permissoes: [
+            { id: 'relatorios.visualizar', descricao: 'Ver relatórios', modulo: 'relatorios', acao: 'visualizar' },
+        ],
+    },
+    {
+        key: 'configuracoes',
+        label: 'Configurações',
+        colorClass: 'text-red-700',
+        bgClass: 'bg-red-50 border-red-200',
+        permissoes: [
+            { id: 'configuracoes.usuarios',  descricao: 'Gerenciar usuários',          modulo: 'configuracoes', acao: 'usuarios' },
+            { id: 'configuracoes.unidades',  descricao: 'Gerenciar unidades',          modulo: 'configuracoes', acao: 'unidades' },
+            { id: 'configuracoes.perfis',    descricao: 'Gerenciar perfis de acesso',  modulo: 'configuracoes', acao: 'perfis' },
+        ],
+    },
+];
 export interface User {
     id: number;
     nome: string;

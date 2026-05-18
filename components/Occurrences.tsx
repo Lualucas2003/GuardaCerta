@@ -27,7 +27,6 @@ const Occurrences: React.FC<OccurrencesProps> = ({ username, showToast }) => {
     const [editingOccurrence, setEditingOccurrence] = useState<Occurrence | null>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [openMenuId, setOpenMenuId] = useState<number | null>(null);
-    const [currentPage, setCurrentPage] = useState(1);
 
     const [filters, setFilters] = useState({
         protocolo: '',
@@ -145,7 +144,6 @@ const Occurrences: React.FC<OccurrencesProps> = ({ username, showToast }) => {
         }
 
         setFilteredOccurrences(results);
-        setCurrentPage(1);
     }, [filters, allOccurrences]);
 
 
@@ -201,14 +199,6 @@ const Occurrences: React.FC<OccurrencesProps> = ({ username, showToast }) => {
         });
     };
     
-    const ITEMS_PER_PAGE = 9;
-
-    const paginatedOccurrences = useMemo(() => {
-        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-        return filteredOccurrences.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-    }, [filteredOccurrences, currentPage]);
-
-    const totalPages = Math.ceil(filteredOccurrences.length / ITEMS_PER_PAGE);
 
 
     const OccurrenceCard: React.FC<{ occurrence: Occurrence }> = ({ occurrence }) => {
@@ -309,32 +299,9 @@ const Occurrences: React.FC<OccurrencesProps> = ({ username, showToast }) => {
             )}
 
             {!loading && !error && filteredOccurrences.length > 0 && viewMode === 'grid' ? (
-                <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
-                        {paginatedOccurrences.map(occ => <OccurrenceCard key={occ.protocolo} occurrence={occ} />)}
-                    </div>
-                     {totalPages > 1 && (
-                        <div className="mt-6 flex justify-between items-center">
-                            <button
-                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                disabled={currentPage === 1}
-                                className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Anterior
-                            </button>
-                            <span className="text-sm text-gray-700">
-                                Página {currentPage} de {totalPages}
-                            </span>
-                            <button
-                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                disabled={currentPage === totalPages}
-                                className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Próxima
-                            </button>
-                        </div>
-                    )}
-                </>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
+                    {filteredOccurrences.map(occ => <OccurrenceCard key={occ.protocolo} occurrence={occ} />)}
+                </div>
             ) : null}
             
             {!loading && !error && filteredOccurrences.length > 0 && viewMode === 'list' ? (
